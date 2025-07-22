@@ -77,12 +77,12 @@ function M.inline_blame_current_line()
   end
   M.clear_blame()
   local bufnr = vim.api.nvim_get_current_buf()
-  if vim.api.nvim_buf_get_option(bufnr, "modified") then
     local cursor = vim.api.nvim_win_get_cursor(0)
     local line = cursor[1]
     show_blame(bufnr, line, "You • Unsaved changes")
     return
   end
+	if vim.api.nvim_get_option_value("modified", { buf = bufnr }) then
 
   local cursor = vim.api.nvim_win_get_cursor(0)
   local line = cursor[1]
