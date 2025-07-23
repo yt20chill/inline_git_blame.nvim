@@ -7,6 +7,12 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 
 ---
 
+## Screenshots
+
+![Inline blame example](assets/commited.png)
+![Unsaved change](assets/unsaved.png)
+![Uncommited change](assets/uncommited.png)
+
 ## Features
 
 - Inline blame for the current line
@@ -83,7 +89,7 @@ vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_curre
 
 ## TODO
 
-- [ ] Debounce time as opts
+- [ ] Customable file type to include or exclude
 
 ## License
 
