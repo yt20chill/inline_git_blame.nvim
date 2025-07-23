@@ -1,4 +1,15 @@
 local M = {}
+
+local defaults = {
+  debounce_ms = 150,
+  excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
+}
+M.options = vim.deepcopy(defaults)
+
+function M.setup(opts)
+  M.options = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
+end
+
 local ns = vim.api.nvim_create_namespace("inline_blame")
 local current_git_user = vim.trim(vim.fn.system("git config user.name"))
 
@@ -37,6 +48,14 @@ local function is_normal_file()
 	local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
 	local ft = vim.api.nvim_get_option_value("filetype", { buf = 0 })
 	return bt == "" and ft ~= "NvimTree" and ft ~= "neo-tree" and ft ~= "TelescopePrompt" and ft ~= "help"
+  local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
+  local ft = vim.api.nvim_get_option_value("filetype", { buf = 0 })
+  for _, excluded in ipairs(M.options.excluded_filetypes) do
+    if ft == excluded then
+      return false
+    end
+  end
+  return bt == ""
 end
 
 local function show_blame(bufnr, line, text)

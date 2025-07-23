@@ -30,13 +30,34 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 ```lua
 {
   "yt20chill/inline_git_blame.nvim",
+  event = "BufReadPost",
   config = function()
-    -- Optional: set up a keymap
-    vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
-    vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
+    local blame = require("inline_git_blame")
+    local timer
+    -- Debounced inline blame on CursorHold
+    vim.api.nvim_create_autocmd("CursorHold", {
+      callback = function()
+        if timer then timer:stop() timer:close() end
+        timer = vim.loop.new_timer()
+        timer:start(150, 0, vim.schedule_wrap(function()
+          blame.inline_blame_current_line()
+        end))
+      end,
+      desc = "Show inline git blame for current line (debounced)",
+    })
+    -- Clear blame on cursor move (normal and insert mode)
+    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+      callback = function()
+        blame.clear_blame()
+      end,
+      desc = "Clear inline git blame on cursor move",
+    })
+    -- Optional: set up keymaps
+    vim.keymap.set("n", "<leader>gb", blame.inline_blame_current_line)
+    vim.keymap.set("n", "<leader>gB", blame.clear_blame)
   end,
 }
-```
+````
 
 ---
 
