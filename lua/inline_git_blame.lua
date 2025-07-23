@@ -61,6 +61,14 @@ local current_git_user = vim.trim(vim.fn.system("git config user.name"))
 
 function M.clear_blame()
 	vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+local function get_current_buf_and_line(zero_indexed)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local line = cursor[1]
+    if zero_indexed then
+        line = line - 1
+    end
+    return bufnr, line
 end
 
 local function relative_time(author_time)
@@ -210,6 +218,14 @@ function M.inline_blame_current_line()
 		end,
 	})
 	return true
+function M.toggle_blame_current_line()
+    local bufnr, line0 = get_current_buf_and_line(true)
+    local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns, {line0, 0}, {line0, -1}, {})
+    if #extmarks > 0 then
+        M.clear_blame()
+    else
+        M.inline_blame_current_line()
+    end
 end
 
 return M

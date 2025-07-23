@@ -172,3 +172,55 @@ describe("clear_blame", function()
     end)
   end)
 end)
+
+describe("toggle_blame_current_line", function()
+  local blame
+  local bufnr = 1
+  local ns = nil
+  local extmarks_called = false
+  local clear_called = false
+  local blame_called = false
+
+  before_each(function()
+    package.loaded["inline_git_blame"] = nil
+    blame = require("inline_git_blame")
+    ns = vim.api.nvim_create_namespace("inline_blame")
+    -- Mock extmarks, clear_blame, and inline_blame_current_line
+    vim.api.nvim_get_current_buf = function() return bufnr end
+    vim.api.nvim_win_get_cursor = function() return {2, 0} end -- line 2 (1-indexed)
+    clear_called = false
+    blame_called = false
+    extmarks_called = false
+    vim.api.nvim_buf_get_extmarks = function(buf, ns_id, start, stop, opts)
+      extmarks_called = true
+      -- Simulate: if extmarks exist, return a non-empty table
+      if _G._test_extmarks_exist then
+        return { {1, 0, {}} }
+      else
+        return {}
+      end
+    end
+    blame.clear_blame = function()
+      clear_called = true
+    end
+    blame.inline_blame_current_line = function()
+      blame_called = true
+    end
+  end)
+
+  it("clears blame if extmarks exist", function()
+    _G._test_extmarks_exist = true
+    blame.toggle_blame_current_line()
+    assert.is_true(extmarks_called)
+    assert.is_true(clear_called)
+    assert.is_false(blame_called)
+  end)
+
+  it("shows blame if extmarks do not exist", function()
+    _G._test_extmarks_exist = false
+    blame.toggle_blame_current_line()
+    assert.is_true(extmarks_called)
+    assert.is_false(clear_called)
+    assert.is_true(blame_called)
+  end)
+end)
