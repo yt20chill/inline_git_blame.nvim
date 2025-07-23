@@ -29,6 +29,18 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 
 **lazy.nvim:**
 
+Minimal:
+
+```lua
+return {
+  "yt20chill/inline_git_blame.nvim",
+  event = "BufReadPost",
+  opts = {}
+}
+```
+
+All settings:
+
 ```lua
 -- plugins/inline_git_blame.nvim
 return {
@@ -42,18 +54,17 @@ return {
     autocmd = true,
   },
   -- optional, default no keybindings because autocmds are preferred
-  keys = {
-    { "<leader>gb", function() require("inline_git_blame").inline_blame_current_line() end, desc = "Show inline git blame" },
-    { "<leader>gB", function() require("inline_git_blame").clear_blame() end, desc = "Clear inline git blame" },
-    { "<leader>gt", function() require("inline_git_blame").toggle_blame_current_line() end, desc = "Toggle inline git blame" },
-  },
+keys = {
+  { "<leader>gb", "<cmd>lua require('inline_git_blame').inline_blame_current_line()<CR>", desc = "Show inline git blame" },
+  { "<leader>gB", "<cmd>lua require('inline_git_blame').clear_blame()<CR>", desc = "Clear inline git blame" },
+  { "<leader>gt", "<cmd>lua require('inline_git_blame').toggle_blame_current_line()<CR>", desc = "Toggle inline git blame" },
+},
 }
 ```
 
 **packer.nvim**
 
 ```lua
--- plugins/inline_git_blame.nvim
 use {
   "yt20chill/inline_git_blame.nvim",
   event = "BufReadPost",
@@ -144,11 +155,11 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 
 ## Options
 
-| Option              | Type      | Default                                                      | Description                                      |
-|---------------------|-----------|--------------------------------------------------------------|--------------------------------------------------|
-| `debounce_ms`       | `number`  | `150`                                                        | Debounce time for blame in ms                    |
-| `excluded_filetypes`| `table`   | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }`      | Filetypes to exclude (your values are appended)  |
-| `autocmd`           | `boolean` | `true`                                                       | Whether to set up built-in autocmds              |
+| Option               | Type      | Default                                                 | Description                                     |
+| -------------------- | --------- | ------------------------------------------------------- | ----------------------------------------------- |
+| `debounce_ms`        | `number`  | `150`                                                   | Debounce time for blame in ms                   |
+| `excluded_filetypes` | `table`   | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }` | Filetypes to exclude (your values are appended) |
+| `autocmd`            | `boolean` | `true`                                                  | Whether to set up built-in autocmds             |
 
 ---
 
