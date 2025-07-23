@@ -20,6 +20,7 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 - Displays "You" if the commit author matches your git user
 - Handles unsaved and uncommitted changes gracefully
 - Skips non-file buffers (NvimTree, Telescope, help, etc.)
+- **Configurable:** Extend the list of excluded filetypes via `excluded_filetypes` option
 
 ---
 
@@ -28,47 +29,72 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 **lazy.nvim:**
 
 ```lua
-{
+-- plugins/inline_git_blame.nvim
+return {
   "yt20chill/inline_git_blame.nvim",
   event = "BufReadPost",
-  config = function()
-    local blame = require("inline_git_blame")
-    local timer
-    -- Debounced inline blame on CursorHold
-    vim.api.nvim_create_autocmd("CursorHold", {
-      callback = function()
-        if timer then timer:stop() timer:close() end
-        timer = vim.loop.new_timer()
-        timer:start(150, 0, vim.schedule_wrap(function()
-          blame.inline_blame_current_line()
-        end))
-      end,
-      desc = "Show inline git blame for current line (debounced)",
-    })
-    -- Clear blame on cursor move (normal and insert mode)
-    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-      callback = function()
-        blame.clear_blame()
-      end,
-      desc = "Clear inline git blame on cursor move",
-    })
+  opts = {
+    -- You can extend the excluded filetypes (these are added to the defaults)
+    excluded_filetypes = { "your-filetype" },
+    debounce_ms = 150,
+    autocmd = true,
+  },
     -- Optional: set up keymaps
-    vim.keymap.set("n", "<leader>gb", blame.inline_blame_current_line)
-    vim.keymap.set("n", "<leader>gB", blame.clear_blame)
+  config = function(_, opts)
+    require("inline_git_blame").setup(opts)
+    vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
+    vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
   end,
 }
-````
+```
+
+**packer.nvim**
+
+```lua
+use {
+  "yt20chill/inline_git_blame.nvim",
+  config = function()
+    require("inline_git_blame").setup({
+      -- optional config
+      excluded_filetypes = { "your-filetype" },
+      debounce_ms = 150,
+      autocmd = true,
+    })
+    -- optional keymap
+    vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
+    vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
+  end,
+}
+```
 
 ---
 
 ## Usage
 
-### Recommended: Debounced Inline Blame on CursorHold
+### Out of the box
 
-**lazy.nvim**
+**No setup required!**  
+By default, inline blame will appear automatically on `CursorHold` and clear on cursor move, thanks to the built-in autocmds.  
+Just install and call:
 
 ```lua
--- Put it in autocmd.lua
+require("inline_git_blame").setup()
+```
+
+You can also add keymaps if you want:
+
+```lua
+vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
+vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
+```
+
+---
+
+### Custom autocmds (optional)
+
+If you want to set up autocmds yourself (for custom debounce or behavior), set `autocmd = false` in your config and use:
+
+```lua
 local blame = require("inline_git_blame")
 local timer
 vim.api.nvim_create_autocmd("CursorHold", {
@@ -90,13 +116,15 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 })
 ```
 
-This will show blame info after a short delay when you pause the cursor, and clear it as soon as you move.
+---
 
-You can call the blame function manually or map it to a key:
+## Options
 
-```lua
-vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
-```
+| Option              | Type      | Default                                                      | Description                                      |
+|---------------------|-----------|--------------------------------------------------------------|--------------------------------------------------|
+| `debounce_ms`       | `number`  | `150`                                                        | Debounce time for blame in ms                    |
+| `excluded_filetypes`| `table`   | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }`      | Filetypes to exclude (your values are appended)  |
+| `autocmd`           | `boolean` | `true`                                                       | Whether to set up built-in autocmds              |
 
 ---
 
@@ -110,7 +138,9 @@ vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_curre
 
 ## TODO
 
-- [ ] Customable file type to include or exclude
+- [x] Customizable file type to include or exclude
+- [ ] Toggle inline git blame
+- [ ] Fix plural time
 
 ## License
 
