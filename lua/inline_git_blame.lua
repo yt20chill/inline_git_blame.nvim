@@ -8,9 +8,8 @@ local defaults = {
 
 local function append_excluded_filetypes(opts)
 	opts = opts or {}
-	opts.excluded_filetypes = opts.excluded_filetypes or {}     -- Ensure excluded_filetypes is always a table
+	opts.excluded_filetypes = opts.excluded_filetypes or {}
 	M.options = vim.deepcopy(defaults)
-
 	assert(type(opts.excluded_filetypes) == "table", "excluded_filetypes must be a table")
 	for _, ft in ipairs(opts.excluded_filetypes) do
 		if type(ft) == "string" then
@@ -34,25 +33,35 @@ function M.setup(opts)
 		end
 		M._autocmds = {}
 		local timer
-		table.insert(M._autocmds, vim.api.nvim_create_autocmd("CursorHold", {
-			callback = function()
-				if timer then
-					timer:stop()
-					timer:close()
-				end
-				timer = vim.loop.new_timer()
-				timer:start(M.options.debounce_ms, 0, vim.schedule_wrap(function()
-					M.inline_blame_current_line()
-				end))
-			end,
-			desc = "Show inline git blame for current line (debounced)",
-		}))
-		table.insert(M._autocmds, vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-			callback = function()
-				M.clear_blame()
-			end,
-			desc = "Clear inline git blame on cursor move",
-		}))
+		table.insert(
+			M._autocmds,
+			vim.api.nvim_create_autocmd("CursorHold", {
+				callback = function()
+					if timer then
+						timer:stop()
+						timer:close()
+					end
+					timer = vim.loop.new_timer()
+					timer:start(
+						M.options.debounce_ms,
+						0,
+						vim.schedule_wrap(function()
+							M.inline_blame_current_line()
+						end)
+					)
+				end,
+				desc = "Show inline git blame for current line (debounced)",
+			})
+		)
+		table.insert(
+			M._autocmds,
+			vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+				callback = function()
+					M.clear_blame()
+				end,
+				desc = "Clear inline git blame on cursor move",
+			})
+		)
 	end
 end
 
@@ -61,14 +70,16 @@ local current_git_user = vim.trim(vim.fn.system("git config user.name"))
 
 function M.clear_blame()
 	vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+end
+
 local function get_current_buf_and_line(zero_indexed)
-    local bufnr = vim.api.nvim_get_current_buf()
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local line = cursor[1]
-    if zero_indexed then
-        line = line - 1
-    end
-    return bufnr, line
+	local bufnr = vim.api.nvim_get_current_buf()
+	local cursor = vim.api.nvim_win_get_cursor(0)
+	local line = cursor[1]
+	if zero_indexed then
+		line = line - 1
+	end
+	return bufnr, line
 end
 
 local function relative_time(author_time)
@@ -153,7 +164,6 @@ local function handle_blame_output(bufnr, line, root, sha, author, author_time)
 	if not (sha and author and author_time) then
 		return
 	end
-	-- Use "You" if author matches current git user
 	local display_author = (author == current_git_user) and "You" or author
 	local show_cmd = { "git", "-C", root, "show", "-s", "--format=%s", sha }
 	vim.fn.jobstart(show_cmd, {
@@ -176,16 +186,12 @@ function M.inline_blame_current_line()
 		return false
 	end
 	M.clear_blame()
-	local bufnr = vim.api.nvim_get_current_buf()
+	local bufnr, line = get_current_buf_and_line(false)
 	if vim.api.nvim_get_option_value("modified", { buf = bufnr }) then
-		local cursor = vim.api.nvim_win_get_cursor(0)
-		local line = cursor[1]
 		show_blame(bufnr, line, "You • Unsaved changes")
 		return true
 	end
 
-	local cursor = vim.api.nvim_win_get_cursor(0)
-	local line = cursor[1]
 	local file = vim.api.nvim_buf_get_name(0)
 	if file == "" then
 		return false
@@ -218,14 +224,17 @@ function M.inline_blame_current_line()
 		end,
 	})
 	return true
+end
+
 function M.toggle_blame_current_line()
-    local bufnr, line0 = get_current_buf_and_line(true)
-    local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns, {line0, 0}, {line0, -1}, {})
-    if #extmarks > 0 then
-        M.clear_blame()
-    else
-        M.inline_blame_current_line()
-    end
+	local bufnr, line0 = get_current_buf_and_line(true)
+	local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns, { line0, 0 }, { line0, -1 }, {})
+	if #extmarks > 0 then
+		M.clear_blame()
+	else
+		M.inline_blame_current_line()
+	end
 end
 
 return M
+
