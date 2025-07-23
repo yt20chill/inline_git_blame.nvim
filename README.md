@@ -21,6 +21,7 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 - Handles unsaved and uncommitted changes gracefully
 - Skips non-file buffers (NvimTree, Telescope, help, etc.)
 - **Configurable:** Extend the list of excluded filetypes via `excluded_filetypes` option
+- **Toggle:** Quickly show/hide blame annotation for the current line with a single function
 
 ---
 
@@ -33,37 +34,43 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 return {
   "yt20chill/inline_git_blame.nvim",
   event = "BufReadPost",
+  -- optional, default settings
   opts = {
-    -- You can extend the excluded filetypes (these are added to the defaults)
-    excluded_filetypes = { "your-filetype" },
+    -- excluded_filetypes will be extended from default
+    excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
     debounce_ms = 150,
     autocmd = true,
   },
-    -- Optional: set up keymaps
-  config = function(_, opts)
-    require("inline_git_blame").setup(opts)
-    vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
-    vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
-  end,
+  -- optional, default no keybindings because autocmds are preferred
+  keys = {
+    { "<leader>gb", function() require("inline_git_blame").inline_blame_current_line() end, desc = "Show inline git blame" },
+    { "<leader>gB", function() require("inline_git_blame").clear_blame() end, desc = "Clear inline git blame" },
+    { "<leader>gt", function() require("inline_git_blame").toggle_blame_current_line() end, desc = "Toggle inline git blame" },
+  },
 }
 ```
 
 **packer.nvim**
 
 ```lua
+-- plugins/inline_git_blame.nvim
 use {
   "yt20chill/inline_git_blame.nvim",
+  event = "BufReadPost",
   config = function()
     require("inline_git_blame").setup({
-      -- optional config
-      excluded_filetypes = { "your-filetype" },
+      -- excluded_filetypes will be extended from default
+      excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
       debounce_ms = 150,
       autocmd = true,
     })
-    -- optional keymap
-    vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
-    vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
   end,
+  -- optional, default no keybindings because autocmds are preferred
+  keys = {
+    { "<leader>gb", function() require("inline_git_blame").inline_blame_current_line() end, desc = "Show inline git blame" },
+    { "<leader>gB", function() require("inline_git_blame").clear_blame() end, desc = "Clear inline git blame" },
+    { "<leader>gt", function() require("inline_git_blame").toggle_blame_current_line() end, desc = "Toggle inline git blame" },
+  },
 }
 ```
 
@@ -86,6 +93,23 @@ You can also add keymaps if you want:
 ```lua
 vim.keymap.set("n", "<leader>gb", require("inline_git_blame").inline_blame_current_line)
 vim.keymap.set("n", "<leader>gB", require("inline_git_blame").clear_blame)
+vim.keymap.set("n", "<leader>gt", require("inline_git_blame").toggle_blame_current_line)
+```
+
+---
+
+### Toggle blame for the current line
+
+You can use the toggle function to quickly show or hide the blame annotation for the current line:
+
+```lua
+require("inline_git_blame").toggle_blame_current_line()
+```
+
+Or map it to a key (as above):
+
+```lua
+vim.keymap.set("n", "<leader>gt", require("inline_git_blame").toggle_blame_current_line)
 ```
 
 ---
@@ -139,7 +163,7 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 ## TODO
 
 - [x] Customizable file type to include or exclude
-- [ ] Toggle inline git blame
+- [x] Toggle inline git blame
 - [ ] Fix plural time
 
 ## License
