@@ -1,13 +1,59 @@
 local M = {}
 
 local defaults = {
-  debounce_ms = 150,
-  excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
+	debounce_ms = 150,
+	excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
+	autocmd = true,
 }
-M.options = vim.deepcopy(defaults)
+
+local function append_excluded_filetypes(opts)
+	opts = opts or {}
+	opts.excluded_filetypes = opts.excluded_filetypes or {}     -- Ensure excluded_filetypes is always a table
+	M.options = vim.deepcopy(defaults)
+
+	assert(type(opts.excluded_filetypes) == "table", "excluded_filetypes must be a table")
+	for _, ft in ipairs(opts.excluded_filetypes) do
+		if type(ft) == "string" then
+			table.insert(M.options.excluded_filetypes, ft)
+		end
+	end
+	for k, v in pairs(opts) do
+		if k ~= "excluded_filetypes" then
+			M.options[k] = v
+		end
+	end
+end
 
 function M.setup(opts)
-  M.options = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
+	append_excluded_filetypes(opts)
+	if M.options.autocmd and M.options.debounce_ms > 0 then
+		if M._autocmds then
+			for _, id in ipairs(M._autocmds) do
+				pcall(vim.api.nvim_del_autocmd, id)
+			end
+		end
+		M._autocmds = {}
+		local timer
+		table.insert(M._autocmds, vim.api.nvim_create_autocmd("CursorHold", {
+			callback = function()
+				if timer then
+					timer:stop()
+					timer:close()
+				end
+				timer = vim.loop.new_timer()
+				timer:start(M.options.debounce_ms, 0, vim.schedule_wrap(function()
+					M.inline_blame_current_line()
+				end))
+			end,
+			desc = "Show inline git blame for current line (debounced)",
+		}))
+		table.insert(M._autocmds, vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+			callback = function()
+				M.clear_blame()
+			end,
+			desc = "Clear inline git blame on cursor move",
+		}))
+	end
 end
 
 local ns = vim.api.nvim_create_namespace("inline_blame")
@@ -44,18 +90,41 @@ local function relative_time(author_time)
 	end
 end
 
-local function is_normal_file()
-	local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
+local function is_git_ignored()
+	local file = vim.api.nvim_buf_get_name(0)
+	if file == "" then
+		return false
+	end
+	local root = vim.fn.getcwd()
+	local relfile = vim.fn.fnamemodify(file, ":.")
+	local handle = io.popen(string.format('git -C "%s" check-ignore "%s"', root, relfile))
+	if not handle then
+		return false
+	end
+	local result = handle:read("*a")
+	handle:close()
+	if result and result ~= "" then
+		return true
+	end
+	return false
+end
+
+local function is_excluded()
 	local ft = vim.api.nvim_get_option_value("filetype", { buf = 0 })
-	return bt == "" and ft ~= "NvimTree" and ft ~= "neo-tree" and ft ~= "TelescopePrompt" and ft ~= "help"
-  local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
-  local ft = vim.api.nvim_get_option_value("filetype", { buf = 0 })
-  for _, excluded in ipairs(M.options.excluded_filetypes) do
-    if ft == excluded then
-      return false
-    end
-  end
-  return bt == ""
+	for _, excluded in ipairs(M.options.excluded_filetypes) do
+		if ft == excluded then
+			return true
+		end
+	end
+	return false
+end
+
+local function is_blamable()
+	local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
+	if bt ~= "" or is_git_ignored() then
+		return false
+	end
+	return not is_excluded()
 end
 
 local function show_blame(bufnr, line, text)
@@ -95,8 +164,8 @@ local function handle_blame_output(bufnr, line, root, sha, author, author_time)
 end
 
 function M.inline_blame_current_line()
-	if not is_normal_file() then
-		return
+	if not is_blamable() then
+		return false
 	end
 	M.clear_blame()
 	local bufnr = vim.api.nvim_get_current_buf()
@@ -104,14 +173,14 @@ function M.inline_blame_current_line()
 		local cursor = vim.api.nvim_win_get_cursor(0)
 		local line = cursor[1]
 		show_blame(bufnr, line, "You • Unsaved changes")
-		return
+		return true
 	end
 
 	local cursor = vim.api.nvim_win_get_cursor(0)
 	local line = cursor[1]
 	local file = vim.api.nvim_buf_get_name(0)
 	if file == "" then
-		return
+		return false
 	end
 	local root = vim.fn.getcwd()
 	local relfile = vim.fn.fnamemodify(file, ":.")
@@ -140,7 +209,7 @@ function M.inline_blame_current_line()
 			handle_blame_output(bufnr, line, root, sha, author, author_time)
 		end,
 	})
+	return true
 end
 
 return M
-
