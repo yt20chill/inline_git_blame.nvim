@@ -17,11 +17,23 @@ Handles unsaved and uncommitted changes, and only activates on normal files (not
 
 - Inline blame for the current line
 - Shows: **Author, relative time, commit message**
-- Displays "You" if the commit author matches your git user
+- Displays "You" (or a custom label) if the commit author matches your git user (`you_label` option)
 - Handles unsaved and uncommitted changes gracefully
 - Skips non-file buffers (NvimTree, Telescope, help, etc.)
 - **Configurable:** Extend the list of excluded filetypes via `excluded_filetypes` option
+- **Configurable:** Set your own label for your commits with the `you_label` option
 - **Toggle:** Quickly show/hide blame annotation for the current line with a single function
+
+---
+
+## Motivation
+
+This plugin provides a **VSCode-style, always-on inline blame annotation for the current line**, updating automatically as you move your cursor.
+
+**Why not just use [gitsignsq.nvim](https://github.com/lewis6991/gitsigns.nvim)?**  
+- LazyVim's default config uses `mini.diff` and disables gitsigns, and does **not** provide inline git blame.
+- Even with gitsigns enabled, you do not get automatic, persistent inline blame on the current line as you move the cursor.
+- This plugin is designed to fill that gap: automatic, VSCode-style inline blame for the current line, with customization for filetypes and your own author label.
 
 ---
 
