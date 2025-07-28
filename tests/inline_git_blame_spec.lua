@@ -428,3 +428,95 @@ describe("you_label", function()
 		assert.matches("You • Uncommitted changes", captured_blame_text)
 	end)
 end)
+
+local relative_time = require("inline_git_blame").relative_time
+
+local relative_time = require("inline_git_blame")._test_relative_time
+
+describe("relative_time", function()
+    it("returns singular for 1 second", function()
+        local now = os.time()
+        local one_second_ago = now - 1
+        assert.matches("1 second ago", relative_time(one_second_ago))
+    end)
+
+    it("returns plural for 2 seconds", function()
+        local now = os.time()
+        local two_seconds_ago = now - 2
+        assert.matches("2 seconds ago", relative_time(two_seconds_ago))
+    end)
+
+    it("returns singular for 1 minute", function()
+        local now = os.time()
+        local one_minute_ago = now - 60
+        assert.matches("1 minute ago", relative_time(one_minute_ago))
+    end)
+
+    it("returns plural for 2 minutes", function()
+        local now = os.time()
+        local two_minutes_ago = now - 120
+        assert.matches("2 minutes ago", relative_time(two_minutes_ago))
+    end)
+
+    it("returns singular for 1 hour", function()
+        local now = os.time()
+        local one_hour_ago = now - 3600
+        assert.matches("1 hour ago", relative_time(one_hour_ago))
+    end)
+
+    it("returns plural for 3 hours", function()
+        local now = os.time()
+        local three_hours_ago = now - 3 * 3600
+        assert.matches("3 hours ago", relative_time(three_hours_ago))
+    end)
+
+    it("returns 'yesterday' for 1 day ago", function()
+        local now = os.time()
+        local one_day_ago = now - 86400
+        assert.matches("yesterday", relative_time(one_day_ago))
+    end)
+
+    it("returns singular for 1 day (but not yesterday)", function()
+        local now = os.time()
+        local just_over_yesterday = now - 172801
+        assert.matches("2 days ago", relative_time(just_over_yesterday))
+    end)
+
+    it("returns plural for 5 days", function()
+        local now = os.time()
+        local five_days_ago = now - 5 * 86400
+        assert.matches("5 days ago", relative_time(five_days_ago))
+    end)
+
+    it("returns singular for 1 month", function()
+        local now = os.time()
+        local one_month_ago = now - 2592000
+        assert.matches("1 month ago", relative_time(one_month_ago))
+    end)
+
+    it("returns plural for 3 months", function()
+        local now = os.time()
+        local three_months_ago = now - 3 * 2592000
+        assert.matches("3 months ago", relative_time(three_months_ago))
+    end)
+
+    it("returns singular for 1 year", function()
+        local now = os.time()
+        local one_year_ago = now - 31536000
+        assert.matches("1 year ago", relative_time(one_year_ago))
+    end)
+
+    it("returns plural for 2 years", function()
+        local now = os.time()
+        local two_years_ago = now - 2 * 31536000
+        assert.matches("2 years ago", relative_time(two_years_ago))
+    end)
+		
+		it("returns unknown for nil input", function()
+        assert.equals("unknown", relative_time(nil))
+    end)
+
+    it("returns unknown for non-numeric input", function()
+        assert.equals("unknown", relative_time("not_a_number"))
+    end)
+end)

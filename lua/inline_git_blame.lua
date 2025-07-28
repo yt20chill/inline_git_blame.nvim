@@ -4,27 +4,26 @@ local defaults = {
 	debounce_ms = 150,
 	excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
 	autocmd = true,
-	you_label = "You",	-- or false to disable replacement
+	you_label = "You", -- or false to disable replacement
 }
 
 local function append_excluded_filetypes(opts)
-    opts = opts or {}
-    local result = vim.deepcopy(defaults.excluded_filetypes)
-    opts.excluded_filetypes = opts.excluded_filetypes or {}
-    assert(type(opts.excluded_filetypes) == "table", "excluded_filetypes must be a table")
-    for _, ft in ipairs(opts.excluded_filetypes) do
-        if type(ft) == "string" then
-            table.insert(result, ft)
-        end
-    end
-    return result
+	opts = opts or {}
+	local result = vim.deepcopy(defaults.excluded_filetypes)
+	opts.excluded_filetypes = opts.excluded_filetypes or {}
+	assert(type(opts.excluded_filetypes) == "table", "excluded_filetypes must be a table")
+	for _, ft in ipairs(opts.excluded_filetypes) do
+		if type(ft) == "string" then
+			table.insert(result, ft)
+		end
+	end
+	return result
 end
 
-
 function M.setup(opts)
-    opts = opts or {}
-    M.options = vim.tbl_extend('keep', opts, defaults)
-		M.options.excluded_filetypes = append_excluded_filetypes(opts)
+	opts = opts or {}
+	M.options = vim.tbl_extend("keep", opts, defaults)
+	M.options.excluded_filetypes = append_excluded_filetypes(opts)
 	if M.options.autocmd and M.options.debounce_ms > 0 then
 		if M._autocmds then
 			for _, id in ipairs(M._autocmds) do
@@ -92,19 +91,25 @@ local function relative_time(author_time)
 	local now = os.time()
 	local diff = os.difftime(now, blame_time)
 	if diff < 60 then
-		return string.format("%d seconds ago", math.floor(diff))
+		local n = math.floor(diff)
+		return string.format("%d second%s ago", n, n == 1 and "" or "s")
 	elseif diff < 3600 then
-		return string.format("%d minutes ago", math.floor(diff / 60))
+		local n = math.floor(diff / 60)
+		return string.format("%d minute%s ago", n, n == 1 and "" or "s")
 	elseif diff < 86400 then
-		return string.format("%d hours ago", math.floor(diff / 3600))
+		local n = math.floor(diff / 3600)
+		return string.format("%d hour%s ago", n, n == 1 and "" or "s")
 	elseif diff < 172800 then
 		return "yesterday"
 	elseif diff < 2592000 then
-		return string.format("%d days ago", math.floor(diff / 86400))
+		local n = math.floor(diff / 86400)
+		return string.format("%d day%s ago", n, n == 1 and "" or "s")
 	elseif diff < 31536000 then
-		return string.format("%d months ago", math.floor(diff / 2592000))
+		local n = math.floor(diff / 2592000)
+		return string.format("%d month%s ago", n, n == 1 and "" or "s")
 	else
-		return string.format("%d years ago", math.floor(diff / 31536000))
+		local n = math.floor(diff / 31536000)
+		return string.format("%d year%s ago", n, n == 1 and "" or "s")
 	end
 end
 
@@ -146,13 +151,12 @@ local function is_blamable()
 end
 
 local function show_blame(bufnr, line, text)
-		vim.api.nvim_buf_set_extmark(bufnr, ns, line - 1, 0, {
-			virt_text = { { "  " .. text, "Comment" } },
-			virt_text_pos = "eol",
-			hl_mode = "combine",
-		})
-	end
-
+	vim.api.nvim_buf_set_extmark(bufnr, ns, line - 1, 0, {
+		virt_text = { { "  " .. text, "Comment" } },
+		virt_text_pos = "eol",
+		hl_mode = "combine",
+	})
+end
 
 local function handle_blame_output(bufnr, line, root, sha, author, author_time)
 	if author == "Not Committed Yet" then
@@ -164,11 +168,11 @@ local function handle_blame_output(bufnr, line, root, sha, author, author_time)
 	if not (sha and author and author_time) then
 		return
 	end
-	
+
 	-- Get current git user for comparison
 	local current_git_user = vim.trim(vim.fn.system("git config user.name"))
 	local display_author = (M.options.you_label and author == current_git_user) and M.options.you_label or author
-		
+
 	local show_cmd = { "git", "-C", root, "show", "-s", "--format=%s", sha }
 	vim.fn.jobstart(show_cmd, {
 		stdout_buffered = true,
@@ -240,5 +244,5 @@ function M.toggle_blame_current_line()
 	end
 end
 
+M._test_relative_time = relative_time
 return M
-

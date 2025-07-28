@@ -157,12 +157,12 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 
 ## Options
 
-| Option               | Type          | Default                                                 | Description                                     |
-| -------------------- | ------------- | ------------------------------------------------------- | ----------------------------------------------- |
-| `debounce_ms`        | `number`      | `150`                                                   | Debounce time for blame in ms                   |
-| `excluded_filetypes` | `table`       | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }` | Filetypes to exclude (your values are appended) |
-| `autocmd`            | `boolean`     | `true`                                                  | Whether to set up built-in autocmds             |
-| `you_label`          | `string/false`| `"You"`                                                 | Label to use for your own commits (or `false` to disable) |
+| Option               | Type           | Default                                                 | Description                                               |
+| -------------------- | -------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| `debounce_ms`        | `number`       | `150`                                                   | Debounce time for blame in ms                             |
+| `excluded_filetypes` | `table`        | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }` | Filetypes to exclude (your values are appended)           |
+| `autocmd`            | `boolean`      | `true`                                                  | Whether to set up built-in autocmds                       |
+| `you_label`          | `string/false` | `"You"`                                                 | Label to use for your own commits (or `false` to disable) |
 
 ---
 
@@ -179,7 +179,7 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 - [x] Customizable file type to include or exclude
 - [x] Toggle inline git blame
 - [x] Customizable you label
-- [ ] Fix plural time
+- [x] Fix plural time
 
 ## License
 
