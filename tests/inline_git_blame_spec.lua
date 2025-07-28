@@ -6,8 +6,17 @@ describe("inline_git_blame", function()
 	local blame
 
 	before_each(function()
-		-- Patch io.popen to always return not gitignored for main tests
-		_G.io.popen = function()
+		-- Patch io.popen to simulate file is inside git repo
+		_G.io.popen = function(cmd)
+			if cmd:find("rev%-parse") then
+				return {
+					read = function()
+						return "/tmp\n"
+					end, -- Simulate repo root
+					close = function() end,
+				}
+			end
+			-- Default for check-ignore
 			return {
 				read = function()
 					return ""
@@ -25,60 +34,70 @@ describe("inline_git_blame", function()
 	end)
 
 	it("should show blame for normal, tracked files", function()
-		vim.bo.filetype = "lua"
-		vim.bo.buftype = ""
-		vim.api.nvim_buf_get_name = function()
-			return "/tmp/test.lua"
-		end
-		vim.fn.getcwd = function()
-			return "/tmp"
-		end
-		vim.fn.fnamemodify = function(file, _)
-			return file
-		end
-		local fake_handle = {
-			read = function()
-				return ""
-			end, -- Simulate not gitignored
-			close = function() end,
-		}
-		_G.io.popen = function()
-			return fake_handle
-		end
+    vim.bo.filetype = "lua"
+    vim.bo.buftype = ""
+    vim.api.nvim_buf_get_name = function()
+        return "/tmp/test.lua"
+    end
+    vim.fn.getcwd = function()
+        return "/tmp"
+    end
+    vim.fn.fnamemodify = function(file, _)
+        return file
+    end
+    local fake_handle = {
+        read = function()
+            return ""
+        end, -- Simulate not gitignored
+        close = function() end,
+    }
+    _G.io.popen = function(cmd)
+        if cmd and cmd:find("rev%-parse") then
+            return {
+                read = function() return "/tmp\n" end, -- Simulate repo root
+                close = function() end,
+            }
+        end
+        return fake_handle
+    end
 
-		assert.is_true(blame.inline_blame_current_line())
-	end)
+    assert.is_true(blame.inline_blame_current_line())
+end)
 
-	it("should show blame for unsaved changes", function()
-		vim.bo.filetype = "lua"
-		vim.bo.buftype = ""
-		vim.api.nvim_buf_get_name = function()
-			return "/tmp/test.lua"
-		end
-		vim.fn.getcwd = function()
-			return "/tmp"
-		end
-		vim.fn.fnamemodify = function(file, _)
-			return file
-		end
-		_G.io.popen = function()
-			return {
-				read = function()
-					return ""
-				end,
-				close = function() end,
-			}
-		end
-		local original_get_option_value = vim.api.nvim_get_option_value
-		vim.api.nvim_get_option_value = function(opt, opts)
-			if opt == "modified" then
-				return true
-			end
-			return original_get_option_value(opt, opts)
-		end
-		assert.is_true(blame.inline_blame_current_line())
-		vim.api.nvim_get_option_value = original_get_option_value
-	end)
+it("should show blame for unsaved changes", function()
+    vim.bo.filetype = "lua"
+    vim.bo.buftype = ""
+    vim.api.nvim_buf_get_name = function()
+        return "/tmp/test.lua"
+    end
+    vim.fn.getcwd = function()
+        return "/tmp"
+    end
+    vim.fn.fnamemodify = function(file, _)
+        return file
+    end
+    _G.io.popen = function(cmd)
+        if cmd and cmd:find("rev%-parse") then
+            return {
+                read = function() return "/tmp\n" end, -- Simulate repo root
+                close = function() end,
+            }
+        end
+        return {
+            read = function() return "" end,
+            close = function() end,
+        }
+    end
+    local original_get_option_value = vim.api.nvim_get_option_value
+    vim.api.nvim_get_option_value = function(opt, opts)
+        if opt == "modified" then
+            return true
+        end
+        return original_get_option_value(opt, opts)
+    end
+    assert.is_true(blame.inline_blame_current_line())
+    vim.api.nvim_get_option_value = original_get_option_value
+end)
 
 	it("should exclude filetypes in excluded_filetypes", function()
 		vim.bo.filetype = "NvimTree"
@@ -111,6 +130,22 @@ describe("inline_git_blame", function()
 	it("should not show blame if buffer has no filename", function()
 		vim.api.nvim_buf_get_name = function()
 			return ""
+		end
+		assert.is_false(blame.inline_blame_current_line())
+	end)
+
+	it("should not show blame if file is outside git repo", function()
+		vim.api.nvim_buf_get_name = function()
+			return "/tmp/not_in_repo.lua"
+		end
+		-- Mock io.popen to simulate no repo root (outside repo)
+		_G.io.popen = function()
+			return {
+				read = function()
+					return ""
+				end, -- repo_root is empty
+				close = function() end,
+			}
 		end
 		assert.is_false(blame.inline_blame_current_line())
 	end)
@@ -326,14 +361,18 @@ describe("you_label", function()
 			return file
 		end
 		local original_popen = _G.io.popen
-		_G.io.popen = function()
-			return {
-				read = function()
-					return ""
-				end,
-				close = function() end,
-			}
-		end
+_G.io.popen = function(cmd)
+    if cmd and cmd:find("rev%-parse") then
+        return {
+            read = function() return "/tmp\n" end, -- Simulate repo root
+            close = function() end,
+        }
+    end
+    return {
+        read = function() return "" end,
+        close = function() end,
+    }
+end
 		local original_get_cursor = vim.api.nvim_win_get_cursor
 		vim.api.nvim_win_get_cursor = function()
 			return { 1, 0 }
@@ -359,8 +398,26 @@ describe("you_label", function()
 	end
 
 	before_each(function()
+		_G.io.popen = function(cmd)
+			if cmd and cmd:find("rev%-parse") then
+				return {
+					read = function()
+						return "/tmp\n"
+					end, -- Simulate repo root
+					close = function() end,
+				}
+			end
+			-- Default for check-ignore
+			return {
+				read = function()
+					return ""
+				end,
+				close = function() end,
+			}
+		end
 		package.loaded["inline_git_blame"] = nil
 		blame = require("inline_git_blame")
+		blame.setup({})
 	end)
 
 	it("should replace the author with you_label when the author is the current git user", function()
@@ -429,94 +486,115 @@ describe("you_label", function()
 	end)
 end)
 
-local relative_time = require("inline_git_blame").relative_time
-
 local relative_time = require("inline_git_blame")._test_relative_time
 
 describe("relative_time", function()
-    it("returns singular for 1 second", function()
-        local now = os.time()
-        local one_second_ago = now - 1
-        assert.matches("1 second ago", relative_time(one_second_ago))
-    end)
+	before_each(function()
+		_G.io.popen = function(cmd)
+			if cmd and cmd:find("rev%-parse") then
+				return {
+					read = function()
+						return "/tmp\n"
+					end, -- Simulate repo root
+					close = function() end,
+				}
+			end
+			-- Default for check-ignore
+			return {
+				read = function()
+					return ""
+				end,
+				close = function() end,
+			}
+		end
+		package.loaded["inline_git_blame"] = nil
+		blame = require("inline_git_blame")
+		blame.setup({})
+	end)
+	it("returns singular for 1 second", function()
+		local now = os.time()
+		local one_second_ago = now - 1
+		assert.matches("1 second ago", relative_time(one_second_ago))
+	end)
 
-    it("returns plural for 2 seconds", function()
-        local now = os.time()
-        local two_seconds_ago = now - 2
-        assert.matches("2 seconds ago", relative_time(two_seconds_ago))
-    end)
+	it("returns plural for 2 seconds", function()
+		local now = os.time()
+		local two_seconds_ago = now - 2
+		assert.matches("2 seconds ago", relative_time(two_seconds_ago))
+	end)
 
-    it("returns singular for 1 minute", function()
-        local now = os.time()
-        local one_minute_ago = now - 60
-        assert.matches("1 minute ago", relative_time(one_minute_ago))
-    end)
+	it("returns singular for 1 minute", function()
+		local now = os.time()
+		local one_minute_ago = now - 60
+		assert.matches("1 minute ago", relative_time(one_minute_ago))
+	end)
 
-    it("returns plural for 2 minutes", function()
-        local now = os.time()
-        local two_minutes_ago = now - 120
-        assert.matches("2 minutes ago", relative_time(two_minutes_ago))
-    end)
+	it("returns plural for 2 minutes", function()
+		local now = os.time()
+		local two_minutes_ago = now - 120
+		assert.matches("2 minutes ago", relative_time(two_minutes_ago))
+	end)
 
-    it("returns singular for 1 hour", function()
-        local now = os.time()
-        local one_hour_ago = now - 3600
-        assert.matches("1 hour ago", relative_time(one_hour_ago))
-    end)
+	it("returns singular for 1 hour", function()
+		local now = os.time()
+		local one_hour_ago = now - 3600
+		assert.matches("1 hour ago", relative_time(one_hour_ago))
+	end)
 
-    it("returns plural for 3 hours", function()
-        local now = os.time()
-        local three_hours_ago = now - 3 * 3600
-        assert.matches("3 hours ago", relative_time(three_hours_ago))
-    end)
+	it("returns plural for 3 hours", function()
+		local now = os.time()
+		local three_hours_ago = now - 3 * 3600
+		assert.matches("3 hours ago", relative_time(three_hours_ago))
+	end)
 
-    it("returns 'yesterday' for 1 day ago", function()
-        local now = os.time()
-        local one_day_ago = now - 86400
-        assert.matches("yesterday", relative_time(one_day_ago))
-    end)
+	it("returns 'yesterday' for 1 day ago", function()
+		local now = os.time()
+		local one_day_ago = now - 86400
+		assert.matches("yesterday", relative_time(one_day_ago))
+	end)
 
-    it("returns singular for 1 day (but not yesterday)", function()
-        local now = os.time()
-        local just_over_yesterday = now - 172801
-        assert.matches("2 days ago", relative_time(just_over_yesterday))
-    end)
+	it("returns singular for 1 day (but not yesterday)", function()
+		local now = os.time()
+		local just_over_yesterday = now - 172801
+		assert.matches("2 days ago", relative_time(just_over_yesterday))
+	end)
 
-    it("returns plural for 5 days", function()
-        local now = os.time()
-        local five_days_ago = now - 5 * 86400
-        assert.matches("5 days ago", relative_time(five_days_ago))
-    end)
+	it("returns plural for 5 days", function()
+		local now = os.time()
+		local five_days_ago = now - 5 * 86400
+		assert.matches("5 days ago", relative_time(five_days_ago))
+	end)
 
-    it("returns singular for 1 month", function()
-        local now = os.time()
-        local one_month_ago = now - 2592000
-        assert.matches("1 month ago", relative_time(one_month_ago))
-    end)
+	it("returns singular for 1 month", function()
+		local now = os.time()
+		local one_month_ago = now - 2592000
+		assert.matches("1 month ago", relative_time(one_month_ago))
+	end)
 
-    it("returns plural for 3 months", function()
-        local now = os.time()
-        local three_months_ago = now - 3 * 2592000
-        assert.matches("3 months ago", relative_time(three_months_ago))
-    end)
+	it("returns plural for 3 months", function()
+		local now = os.time()
+		local three_months_ago = now - 3 * 2592000
+		assert.matches("3 months ago", relative_time(three_months_ago))
+	end)
 
-    it("returns singular for 1 year", function()
-        local now = os.time()
-        local one_year_ago = now - 31536000
-        assert.matches("1 year ago", relative_time(one_year_ago))
-    end)
+	it("returns singular for 1 year", function()
+		local now = os.time()
+		local one_year_ago = now - 31536000
+		assert.matches("1 year ago", relative_time(one_year_ago))
+	end)
 
-    it("returns plural for 2 years", function()
-        local now = os.time()
-        local two_years_ago = now - 2 * 31536000
-        assert.matches("2 years ago", relative_time(two_years_ago))
-    end)
-		
-		it("returns unknown for nil input", function()
-        assert.equals("unknown", relative_time(nil))
-    end)
+	it("returns plural for 2 years", function()
+		local now = os.time()
+		local two_years_ago = now - 2 * 31536000
+		assert.matches("2 years ago", relative_time(two_years_ago))
+	end)
 
-    it("returns unknown for non-numeric input", function()
-        assert.equals("unknown", relative_time("not_a_number"))
-    end)
+	it("returns unknown for nil input", function()
+		assert.equals("unknown", relative_time(nil))
+	end)
+
+	it("returns unknown for non-numeric input", function()
+		assert.equals("unknown", relative_time("not_a_number"))
+	end)
 end)
+

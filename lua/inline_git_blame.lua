@@ -142,12 +142,26 @@ local function is_excluded()
 	return false
 end
 
+local function is_in_git_repo(file)
+    local handle = io.popen('git rev-parse --show-toplevel 2>/dev/null')
+    if not handle then return false end
+    local repo_root = handle:read("*a")
+    handle:close()
+    repo_root = vim.trim(repo_root)
+    if repo_root == "" then return false end
+    -- Normalize paths for comparison
+    file = vim.fn.fnamemodify(file, ":p")
+    repo_root = vim.fn.fnamemodify(repo_root, ":p")
+    return file:sub(1, #repo_root) == repo_root
+end
+
 local function is_blamable()
-	local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
-	if bt ~= "" or is_git_ignored() then
-		return false
-	end
-	return not is_excluded()
+    local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
+    local file = vim.api.nvim_buf_get_name(0)
+    if bt ~= "" or is_git_ignored() or file == "" or not is_in_git_repo(file) then
+        return false
+    end
+    return not is_excluded()
 end
 
 local function show_blame(bufnr, line, text)
