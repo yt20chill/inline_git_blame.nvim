@@ -52,6 +52,7 @@ return {
     excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
     debounce_ms = 150,
     autocmd = true,
+    you_label = "You", -- can be any string, or false to disable replacement
   },
   -- optional, default no keybindings because autocmds are preferred
 keys = {
@@ -74,6 +75,7 @@ use {
       excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
       debounce_ms = 150,
       autocmd = true,
+      you_label = "You", -- can be any string, or false to disable replacement
     })
   end,
   -- optional, default no keybindings because autocmds are preferred
@@ -155,11 +157,12 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 
 ## Options
 
-| Option               | Type      | Default                                                 | Description                                     |
-| -------------------- | --------- | ------------------------------------------------------- | ----------------------------------------------- |
-| `debounce_ms`        | `number`  | `150`                                                   | Debounce time for blame in ms                   |
-| `excluded_filetypes` | `table`   | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }` | Filetypes to exclude (your values are appended) |
-| `autocmd`            | `boolean` | `true`                                                  | Whether to set up built-in autocmds             |
+| Option               | Type          | Default                                                 | Description                                     |
+| -------------------- | ------------- | ------------------------------------------------------- | ----------------------------------------------- |
+| `debounce_ms`        | `number`      | `150`                                                   | Debounce time for blame in ms                   |
+| `excluded_filetypes` | `table`       | `{ "NvimTree", "neo-tree", "TelescopePrompt", "help" }` | Filetypes to exclude (your values are appended) |
+| `autocmd`            | `boolean`     | `true`                                                  | Whether to set up built-in autocmds             |
+| `you_label`          | `string/false`| `"You"`                                                 | Label to use for your own commits (or `false` to disable) |
 
 ---
 
@@ -175,6 +178,7 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 
 - [x] Customizable file type to include or exclude
 - [x] Toggle inline git blame
+- [x] Customizable you label
 - [ ] Fix plural time
 
 ## License

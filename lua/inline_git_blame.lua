@@ -4,27 +4,27 @@ local defaults = {
 	debounce_ms = 150,
 	excluded_filetypes = { "NvimTree", "neo-tree", "TelescopePrompt", "help" },
 	autocmd = true,
+	you_label = "You",	-- or false to disable replacement
 }
 
 local function append_excluded_filetypes(opts)
-	opts = opts or {}
-	opts.excluded_filetypes = opts.excluded_filetypes or {}
-	M.options = vim.deepcopy(defaults)
-	assert(type(opts.excluded_filetypes) == "table", "excluded_filetypes must be a table")
-	for _, ft in ipairs(opts.excluded_filetypes) do
-		if type(ft) == "string" then
-			table.insert(M.options.excluded_filetypes, ft)
-		end
-	end
-	for k, v in pairs(opts) do
-		if k ~= "excluded_filetypes" then
-			M.options[k] = v
-		end
-	end
+    opts = opts or {}
+    local result = vim.deepcopy(defaults.excluded_filetypes)
+    opts.excluded_filetypes = opts.excluded_filetypes or {}
+    assert(type(opts.excluded_filetypes) == "table", "excluded_filetypes must be a table")
+    for _, ft in ipairs(opts.excluded_filetypes) do
+        if type(ft) == "string" then
+            table.insert(result, ft)
+        end
+    end
+    return result
 end
 
+
 function M.setup(opts)
-	append_excluded_filetypes(opts)
+    opts = opts or {}
+    M.options = vim.tbl_extend('keep', opts, defaults)
+		M.options.excluded_filetypes = append_excluded_filetypes(opts)
 	if M.options.autocmd and M.options.debounce_ms > 0 then
 		if M._autocmds then
 			for _, id in ipairs(M._autocmds) do
@@ -66,7 +66,6 @@ function M.setup(opts)
 end
 
 local ns = vim.api.nvim_create_namespace("inline_blame")
-local current_git_user = vim.trim(vim.fn.system("git config user.name"))
 
 function M.clear_blame()
 	vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
@@ -147,12 +146,13 @@ local function is_blamable()
 end
 
 local function show_blame(bufnr, line, text)
-	vim.api.nvim_buf_set_extmark(bufnr, ns, line - 1, 0, {
-		virt_text = { { "  " .. text, "Comment" } },
-		virt_text_pos = "eol",
-		hl_mode = "combine",
-	})
-end
+		vim.api.nvim_buf_set_extmark(bufnr, ns, line - 1, 0, {
+			virt_text = { { "  " .. text, "Comment" } },
+			virt_text_pos = "eol",
+			hl_mode = "combine",
+		})
+	end
+
 
 local function handle_blame_output(bufnr, line, root, sha, author, author_time)
 	if author == "Not Committed Yet" then
@@ -164,7 +164,11 @@ local function handle_blame_output(bufnr, line, root, sha, author, author_time)
 	if not (sha and author and author_time) then
 		return
 	end
-	local display_author = (author == current_git_user) and "You" or author
+	
+	-- Get current git user for comparison
+	local current_git_user = vim.trim(vim.fn.system("git config user.name"))
+	local display_author = (M.options.you_label and author == current_git_user) and M.options.you_label or author
+		
 	local show_cmd = { "git", "-C", root, "show", "-s", "--format=%s", sha }
 	vim.fn.jobstart(show_cmd, {
 		stdout_buffered = true,

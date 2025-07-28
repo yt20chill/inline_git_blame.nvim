@@ -270,3 +270,161 @@ describe("toggle_blame_current_line", function()
 	end)
 end)
 
+describe("you_label", function()
+	local blame
+
+	local function setup_mocks(current_git_user, blame_output)
+		local original_system = vim.fn.system
+		vim.fn.system = function(cmd)
+			if type(cmd) == "string" and cmd == "git config user.name" then
+				return current_git_user
+			end
+			return ""
+		end
+
+		local original_jobstart = vim.fn.jobstart
+		vim.fn.jobstart = function(cmd, opts)
+			vim.schedule(function()
+				if cmd[1] == "git" and cmd[4] == "blame" then
+					opts.on_stdout(nil, blame_output)
+				elseif cmd[1] == "git" and cmd[4] == "show" then
+					opts.on_stdout(nil, { "test commit message" })
+				end
+			end)
+		end
+
+		local captured_blame_text
+		local original_set_extmark = vim.api.nvim_buf_set_extmark
+		vim.api.nvim_buf_set_extmark = function(bufnr, ns, line, col, opts)
+			captured_blame_text = opts.virt_text[1][1]
+		end
+
+		local original_get_option_value = vim.api.nvim_get_option_value
+		vim.api.nvim_get_option_value = function(opt, opts_arg)
+			if opt == "modified" then
+				return false
+			end
+			if opt == "filetype" then
+				return "lua"
+			end
+			if opt == "buftype" then
+				return ""
+			end
+			return original_get_option_value(opt, opts_arg)
+		end
+
+		local original_get_name = vim.api.nvim_buf_get_name
+		vim.api.nvim_buf_get_name = function()
+			return "/tmp/test.lua"
+		end
+		local original_getcwd = vim.fn.getcwd
+		vim.fn.getcwd = function()
+			return "/tmp"
+		end
+		local original_fnamemodify = vim.fn.fnamemodify
+		vim.fn.fnamemodify = function(file, _)
+			return file
+		end
+		local original_popen = _G.io.popen
+		_G.io.popen = function()
+			return {
+				read = function()
+					return ""
+				end,
+				close = function() end,
+			}
+		end
+		local original_get_cursor = vim.api.nvim_win_get_cursor
+		vim.api.nvim_win_get_cursor = function()
+			return { 1, 0 }
+		end
+		local original_get_buf = vim.api.nvim_get_current_buf
+		vim.api.nvim_get_current_buf = function()
+			return 0
+		end
+
+		return function()
+			vim.fn.system = original_system
+			vim.fn.jobstart = original_jobstart
+			vim.api.nvim_buf_set_extmark = original_set_extmark
+			vim.api.nvim_get_option_value = original_get_option_value
+			vim.api.nvim_buf_get_name = original_get_name
+			vim.fn.getcwd = original_getcwd
+			vim.fn.fnamemodify = original_fnamemodify
+			_G.io.popen = original_popen
+			vim.api.nvim_win_get_cursor = original_get_cursor
+			vim.api.nvim_get_current_buf = original_get_buf
+			return captured_blame_text
+		end
+	end
+
+	before_each(function()
+		package.loaded["inline_git_blame"] = nil
+		blame = require("inline_git_blame")
+	end)
+
+	it("should replace the author with you_label when the author is the current git user", function()
+		local blame_output = {
+			"abcdef1234567890 (test_author 2023-01-01 12:00:00 +0000 1) line content",
+			"author test_author",
+			"author-time 1672574400",
+		}
+		local cleanup = setup_mocks("test_author", blame_output)
+		blame.setup({ you_label = "You" })
+		blame.inline_blame_current_line()
+		vim.wait(20)
+		local captured_blame_text = cleanup()
+		assert.matches("  You", captured_blame_text)
+	end)
+
+	it("should not replace the author when the author is not the current git user", function()
+		local blame_output = {
+			"abcdef1234567890 (test_author 2023-01-01 12:00:00 +0000 1) line content",
+			"author test_author",
+			"author-time 1672574400",
+		}
+		local cleanup = setup_mocks("another_user", blame_output)
+		blame.setup({ you_label = "You" })
+		blame.inline_blame_current_line()
+		vim.wait(20)
+		local captured_blame_text = cleanup()
+		assert.matches("  test_author,", captured_blame_text)
+	end)
+
+	it("should not replace the author when you_label is nil", function()
+		local blame_output = {
+			"abcdef1234567890 (test_author 2023-01-01 12:00:00 +0000 1) line content",
+			"author test_author",
+			"author-time 1672574400",
+		}
+		local cleanup = setup_mocks("test_author", blame_output)
+		blame.setup({ you_label = false })
+		blame.inline_blame_current_line()
+		vim.wait(20)
+		local captured_blame_text = cleanup()
+		assert.matches("  test_author,", captured_blame_text)
+	end)
+
+	it("should show a custom you_label when set", function()
+		local blame_output = {
+			"abcdef1234567890 (test_author 2023-01-01 12:00:00 +0000 1) line content",
+			"author test_author",
+			"author-time 1672574400",
+		}
+		local cleanup = setup_mocks("test_author", blame_output)
+		blame.setup({ you_label = "Me" })
+		blame.inline_blame_current_line()
+		vim.wait(20)
+		local captured_blame_text = cleanup()
+		assert.matches("^  Me,", captured_blame_text)
+	end)
+
+	it("should show uncommitted changes when blame output is empty", function()
+		local cleanup = setup_mocks("test_user", { "" })
+		blame.setup({})
+		blame.inline_blame_current_line()
+		vim.wait(20)
+		local captured_blame_text = cleanup()
+		assert.matches("You • Uncommitted changes", captured_blame_text)
+	end)
+end)
