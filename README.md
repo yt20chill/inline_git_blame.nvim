@@ -180,6 +180,7 @@ vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
 - [x] Toggle inline git blame
 - [x] Customizable you label
 - [x] Fix plural time
+- [x] Fix file outside of git repo error message
 
 ## License
 

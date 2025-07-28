@@ -158,7 +158,7 @@ end
 local function is_blamable()
     local bt = vim.api.nvim_get_option_value("buftype", { buf = 0 })
     local file = vim.api.nvim_buf_get_name(0)
-    if bt ~= "" or is_git_ignored() or file == "" or not is_in_git_repo(file) then
+    if bt ~= "" or file == "" or not is_in_git_repo(file) or is_git_ignored() then
         return false
     end
     return not is_excluded()
